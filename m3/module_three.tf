@@ -2,6 +2,8 @@
 # VARIABLES
 ##################################################################################
 
+# get them from the tfvars file
+
 variable "aws_access_key" {}
 variable "aws_secret_key" {}
 variable "private_key_path" {}
