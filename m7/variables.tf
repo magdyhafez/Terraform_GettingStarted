@@ -10,13 +10,13 @@ variable "region" {
   default = "us-east-1"
 }
 variable network_address_space {
-  type = map(string)
+  type = map(string) #of type map 
 }
 variable "instance_size" {
   type = map(string)
 }
 variable "subnet_count" {
-  type = map(number)
+  type = map(number) #you can provide only numbers for keys
 }
 variable "instance_count" {
   type = map(number)
