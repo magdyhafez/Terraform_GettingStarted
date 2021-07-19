@@ -9,9 +9,12 @@ variable "key_name" {}
 variable "region" {
   default = "us-east-1"
 }
+#network address for vpc
 variable "network_address_space" {
   default = "10.1.0.0/16"
 }
+#subnet address for VPC
+
 variable "subnet1_address_space" {
   default = "10.1.0.0/24"
 }
@@ -29,7 +32,7 @@ provider "aws" {
 ##################################################################################
 # DATA
 ##################################################################################
-
+#Getting list of available availabilty zones for subnet 
 data "aws_availability_zones" "available" {}
 
 data "aws_ami" "aws-linux" {
@@ -62,12 +65,13 @@ resource "aws_vpc" "vpc" {
   enable_dns_hostnames = "true"
 
 }
-
+#deploying internet gateway and telling which vpc to attach it to
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
 }
-
+#creating subnet
+# Getting public ip as well as inetrnal one 
 resource "aws_subnet" "subnet1" {
   cidr_block              = var.subnet1_address_space
   vpc_id                  = aws_vpc.vpc.id
@@ -85,7 +89,7 @@ resource "aws_route_table" "rtb" {
     gateway_id = aws_internet_gateway.igw.id
   }
 }
-
+#Associate route table swith subnet created 
 resource "aws_route_table_association" "rta-subnet1" {
   subnet_id      = aws_subnet.subnet1.id
   route_table_id = aws_route_table.rtb.id
@@ -93,6 +97,7 @@ resource "aws_route_table_association" "rta-subnet1" {
 
 # SECURITY GROUPS #
 # Nginx security group 
+#opening port 22 and port 80 access from anywhere for http tarffic
 resource "aws_security_group" "nginx-sg" {
   name   = "nginx_sg"
   vpc_id = aws_vpc.vpc.id
@@ -123,6 +128,7 @@ resource "aws_security_group" "nginx-sg" {
 }
 
 # INSTANCES #
+#ec2 instance , put it in subnet and can connect through http ssh
 resource "aws_instance" "nginx1" {
   ami                    = data.aws_ami.aws-linux.id
   instance_type          = "t2.micro"
@@ -151,7 +157,7 @@ resource "aws_instance" "nginx1" {
 ##################################################################################
 # OUTPUT
 ##################################################################################
-
+# Public dns name for this create ec2 insatnce 
 output "aws_instance_public_dns" {
   value = aws_instance.nginx1.public_dns
 }
