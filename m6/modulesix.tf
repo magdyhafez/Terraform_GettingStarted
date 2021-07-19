@@ -31,6 +31,7 @@ variable "billing_code_tag" {}
 variable "environment_tag" {}
 variable "bucket_name_prefix" {}
 
+#azure variables 
 variable "arm_subscription_id" {}
 variable "arm_principal" {}
 variable "arm_password" {}
@@ -38,6 +39,7 @@ variable "tenant_id" {}
 variable "dns_zone_name" {}
 variable "dns_resource_group" {}
 
+# New varriables 
 variable "instance_count" {
   default = 2
 }
@@ -55,13 +57,13 @@ provider "aws" {
   secret_key = var.aws_secret_key
   region     = var.region
 }
-
+#Define Azure Provider 
 provider "azurerm" {
   subscription_id = var.arm_subscription_id
   client_id       = var.arm_principal
   client_secret   = var.arm_password
   tenant_id       = var.tenant_id
-  alias           = "arm-1"
+  alias           = "arm-1" #How to refer to it
   
   #Added when using service principal with limited permissions
   skip_provider_registration = true
@@ -134,13 +136,15 @@ resource "aws_internet_gateway" "igw" {
 
 }
 
+# Creating number of subnets by count
+
 resource "aws_subnet" "subnet" {
-  count                   = var.subnet_count
-  cidr_block              = cidrsubnet(var.network_address_space, 8, count.index)
+  count                   = var.subnet_count # Creating two subnets in this case 
+  cidr_block              = cidrsubnet(var.network_address_space, 8, count.index)# Getting the subnets
   vpc_id                  = aws_vpc.vpc.id
   map_public_ip_on_launch = true
   availability_zone       = data.aws_availability_zones.available.names[count.index]
-
+#tag will depend on the count
   tags = merge(local.common_tags, { Name = "${var.environment_tag}-subnet${count.index + 1}" })
 
 }
@@ -156,6 +160,8 @@ resource "aws_route_table" "rtb" {
 
   tags = merge(local.common_tags, { Name = "${var.environment_tag}-rtb" })
 }
+
+#asscoiate route table with each subnet 
 
 resource "aws_route_table_association" "rta-subnet" {
   count          = var.subnet_count
@@ -223,9 +229,9 @@ resource "aws_security_group" "nginx-sg" {
 resource "aws_elb" "web" {
   name = "nginx-elb"
 
-  subnets         = aws_subnet.subnet[*].id
+  subnets         = aws_subnet.subnet[*].id # all subnets 
   security_groups = [aws_security_group.elb-sg.id]
-  instances       = aws_instance.nginx[*].id
+  instances       = aws_instance.nginx[*].id # all instances 
 
   listener {
     instance_port     = 80
@@ -242,7 +248,7 @@ resource "aws_instance" "nginx" {
   count                  = var.instance_count
   ami                    = data.aws_ami.aws-linux.id
   instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.subnet[count.index % var.subnet_count].id
+  subnet_id              = aws_subnet.subnet[count.index % var.subnet_count].id #get the subnet id by getting the remainder
   vpc_security_group_ids = [aws_security_group.nginx-sg.id]
   key_name               = var.key_name
   iam_instance_profile   = aws_iam_instance_profile.nginx_profile.name
@@ -387,7 +393,7 @@ EOF
     name                = "${var.environment_tag}-website"
     zone_name           = var.dns_zone_name
     resource_group_name = var.dns_resource_group
-    ttl                 = "30"
+    ttl                 = "30" # How long record is valide , 30 secs 
     record              = aws_elb.web.dns_name
     provider            = azurerm.arm-1
 
