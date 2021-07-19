@@ -82,6 +82,7 @@ resource "random_integer" "rand" {
 }
 
 # NETWORKING #
+#taking the vpc module from Terraform registry
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
   name   = "${local.env_name}-vpc"
@@ -245,6 +246,7 @@ EOF
 }
 
 # S3 Bucket config#
+#Bucket in our module
 module "bucket" {
   name = local.s3_bucket_name
 
