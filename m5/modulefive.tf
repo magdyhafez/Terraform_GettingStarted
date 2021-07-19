@@ -18,7 +18,9 @@ variable "subnet1_address_space" {
 variable "subnet2_address_space" {
   default = "10.1.1.0/24"
 }
+#bucketName
 variable "bucket_name_prefix" {}
+#logging tags
 variable "billing_code_tag" {}
 variable "environment_tag" {}
 
@@ -35,13 +37,14 @@ provider "aws" {
 ##################################################################################
 # LOCALS
 ##################################################################################
-
+#define local variables to use in the configurations
 locals {
+  #Map with two key -value pairs
   common_tags = {
     BillingCode = var.billing_code_tag
     Environment = var.environment_tag
   }
-
+#Bucket name => Made of concantenation   , the random number is generated from a resource 
   s3_bucket_name = "${var.bucket_name_prefix}-${var.environment_tag}-${random_integer.rand.result}"
 }
 
@@ -74,10 +77,10 @@ data "aws_ami" "aws-linux" {
 ##################################################################################
 # RESOURCES
 ##################################################################################
-
+# Random Number generator 
 #Random ID
 resource "random_integer" "rand" {
-  min = 10000
+  min = 10000 3 # of number type
   max = 99999
 }
 
@@ -85,7 +88,8 @@ resource "random_integer" "rand" {
 # NETWORKING #
 resource "aws_vpc" "vpc" {
   cidr_block = var.network_address_space
-
+ # NEW KEY VALUE PAIR => merge takes two maps objects into single map 
+ #result : dev-vpc
   tags = merge(local.common_tags, { Name = "${var.environment_tag}-vpc" })
 }
 
@@ -224,7 +228,10 @@ resource "aws_instance" "nginx1" {
   vpc_security_group_ids = [aws_security_group.nginx-sg.id]
   key_name               = var.key_name
   iam_instance_profile   = aws_iam_instance_profile.nginx_profile.name
+  # instance profile to get  access to bucket 
 
+
+#connection used by provisoners 
   connection {
     type        = "ssh"
     host        = self.public_ip
@@ -234,6 +241,7 @@ resource "aws_instance" "nginx1" {
   }
 
   provisioner "file" {
+    #define file conetnt inline 
     content = <<EOF
 access_key =
 secret_key =
@@ -265,19 +273,20 @@ EOF
     destination = "/home/ec2-user/nginx"
   }
 
+
   provisioner "remote-exec" {
     inline = [
       "sudo yum install nginx -y",
       "sudo service nginx start",
-      "sudo cp /home/ec2-user/.s3cfg /root/.s3cfg",
+      "sudo cp /home/ec2-user/.s3cfg /root/.s3cfg",# because file provisoner doesn't have root access
       "sudo cp /home/ec2-user/nginx /etc/logrotate.d/nginx",
       "sudo pip install s3cmd",
-      "s3cmd get s3://${aws_s3_bucket.web_bucket.id}/website/index.html .",
+      "s3cmd get s3://${aws_s3_bucket.web_bucket.id}/website/index.html .",#Get file from bucket
       "s3cmd get s3://${aws_s3_bucket.web_bucket.id}/website/Globo_logo_Vert.png .",
       "sudo rm /usr/share/nginx/html/index.html",
       "sudo cp /home/ec2-user/index.html /usr/share/nginx/html/index.html",
       "sudo cp /home/ec2-user/Globo_logo_Vert.png /usr/share/nginx/html/Globo_logo_Vert.png",
-      "sudo logrotate -f /etc/logrotate.conf"
+      "sudo logrotate -f /etc/logrotate.conf" #copy logs from instance to s3 bucket 
       
     ]
   }
@@ -356,6 +365,8 @@ EOF
 }
 
 # S3 Bucket config#
+#Give the policy for the bucket to allow wriitng and reading from it
+#Usually this policy is taken from amazon by copy paste 
 resource "aws_iam_role" "allow_nginx_s3" {
   name = "allow_nginx_s3"
 
@@ -376,11 +387,12 @@ resource "aws_iam_role" "allow_nginx_s3" {
 EOF
 }
 
+#instance profile that will have the profile role 
 resource "aws_iam_instance_profile" "nginx_profile" {
   name = "nginx_profile"
   role = aws_iam_role.allow_nginx_s3.name
 }
-
+#Policy for the role 
 resource "aws_iam_role_policy" "allow_s3_all" {
   name = "allow_s3_all"
   role = aws_iam_role.allow_nginx_s3.name
@@ -403,12 +415,15 @@ resource "aws_iam_role_policy" "allow_s3_all" {
 }
 EOF
 
+# So we have role , associate this role with policy which have access to S3 bucket and we are allowing instances 
+# to assume that role to get this level of access 
   }
 
+#Create the S3 bucket itself 
   resource "aws_s3_bucket" "web_bucket" {
     bucket        = local.s3_bucket_name
     acl           = "private"
-    force_destroy = true
+    force_destroy = true # Destory it if empty 
 
     tags = merge(local.common_tags, { Name = "${var.environment_tag}-web-bucket" })
 
